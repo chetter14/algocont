@@ -38,4 +38,4 @@ fi
 echo "Got MODE: $MODE"
 
 mkdir -p ../$OUT/$TASK
-"$CXX" $CXXFLAGS_TOTAL "../$TASK/Main.cpp" -o "../$OUT/$TASK/App$MODE"
+"$CXX" $CXXFLAGS_TOTAL "../$TASK/main.cpp" -o "../$OUT/$TASK/App$MODE"

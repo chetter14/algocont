@@ -27,5 +27,5 @@
             "program": "${workspaceFolder}/out/${relativeFileDirname}/AppAsan",
             "preLaunchTask": "Build Asan",
         },
-    ],
+    ]
 }
