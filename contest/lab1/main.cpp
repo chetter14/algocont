@@ -1,16 +1,9 @@
-#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <utility>
 #include <vector>
 
 using uint = unsigned int;
-
-struct Block {
-  uint l = 0;
-  uint r = 0;
-  uint zero_count = 0;
-};
 
 class SqrtDecomposition {
 public:
@@ -20,29 +13,26 @@ public:
   }
 
   void Init() {
-    // Initialize l and r indices:
-    for (uint i = 0; i < arr_.size(); i += block_len_) {
-      Block& bck = blocks_[i / block_len_];
-      bck.l = i;
-      bck.r = std::min(i + block_len_ - 1, static_cast<uint>(arr_.size() - 1));
-    }
-
     // Initialize zero counters in each blocks_
     for (uint i = 0; i < arr_.size(); ++i) {
-      Block& bck = blocks_[i / block_len_];
+      int& bck_zero_count = blocks_[i / block_len_];
       if (arr_[i] == 0) {
-        ++bck.zero_count;
+        ++bck_zero_count;
       }
     }
   }
 
   void Update(int index, int value) {
+    if (arr_[index] == value) {  // Nothing changes
+      return;
+    }
+
     // Update the block:
-    Block& bck = blocks_[index / block_len_];
+    int& bck_zero_count = blocks_[index / block_len_];
     if (arr_[index] == 0 && value != 0) {
-      --bck.zero_count;
+      --bck_zero_count;
     } else if (arr_[index] != 0 && value == 0) {
-      ++bck.zero_count;
+      ++bck_zero_count;
     }
 
     // Update the array:
@@ -51,101 +41,94 @@ public:
 
   int Get(uint left, uint right, uint key) {
     uint zero_count = 0;
-    uint block_start = left / block_len_;
-    uint block_end = right / block_len_;
 
-    if (block_start ==
-        block_end) {  // If the range is within a single block, fall back to element-wise counting
-      for (uint i = left; i <= right; ++i) {
-        if (arr_[i] == 0) {
-          ++zero_count;
-        }
-        if (zero_count == key) {
-          return static_cast<int>(i) + 1;
-        }
+    // Process the leftmost partial block
+    while (left <= right && (left % block_len_ != 0) && left != 0) {
+      if (arr_[left] == 0 && ++zero_count == key) {
+        return static_cast<int>(left) + 1;
       }
-    } else {
-      // Partial first block
-      uint first_block_end = (block_start + 1) * block_len_ - 1;
-      for (uint i = left; i <= first_block_end; ++i) {
-        if (arr_[i] == 0) {
-          ++zero_count;
-        }
-        if (zero_count == key) {
-          return static_cast<int>(i) + 1;
-        }
-      }
+      ++left;
+    }
 
-      // Full blocks in between
-      for (uint cur_bck = block_start + 1; cur_bck < block_end; ++cur_bck) {
-        uint cur_zero_count = blocks_[cur_bck].zero_count;
-        if (zero_count + cur_zero_count >=
-            key) {  // If the k-th zero is within this block, fall back to element-wise search
-          uint block_begin = cur_bck * block_len_;
-          uint block_end = block_begin + block_len_ - 1;
-          for (uint i = block_begin; i <= block_end; ++i) {
-            if (arr_[i] == 0) {
-              ++zero_count;
-            }
-            if (zero_count == key) {
-              return static_cast<int>(i) + 1;
-            }
-          }
-        }
-        zero_count += cur_zero_count;
-      }
+    // Process full blocks in the middle
+    uint cur_block = left / block_len_;
+    while (left + block_len_ - 1 <= right && zero_count + blocks_[cur_block] < key) {
+      zero_count += blocks_[cur_block];
+      left += block_len_;
+      cur_block = left / block_len_;
+    }
 
-      // Partial last block
-      uint last_block_begin = block_end * block_len_;
-      for (uint i = last_block_begin; i <= right; ++i) {
-        if (arr_[i] == 0) {
-          ++zero_count;
-        }
-        if (zero_count == key) {
-          return static_cast<int>(i) + 1;
-        }
+    // Process the rightmost partial block
+    while (left <= right) {
+      if (arr_[left] == 0 && ++zero_count == key) {
+        return static_cast<int>(left) + 1;
       }
+      ++left;
     }
 
     return -1;
-
-    // uint zero_count = 0;
-    // for (uint i = left; i <= right;) {
-    //   uint cur_zero_count = zero_count + blocks_[i / block_len_].zero_count;
-    //   if (i % block_len_ == 0 && i + block_len_ - 1 <= right && cur_zero_count < key) {
-    //     zero_count = cur_zero_count;
-    //     i += block_len_;
-    //   } else {
-    //     if (arr_[i] == 0) {
-    //       ++zero_count;
-    //     }
-    //     if (zero_count == key) {
-    //       return static_cast<int>(i) + 1;  // i + 1 - index appropriate for user
-    //     }
-    //     ++i;
-    //   }
-    // }
-    // return -1;
   }
 
 private:
   std::vector<int> arr_;
-  std::vector<Block> blocks_;
+  std::vector<int> blocks_;
   uint block_len_;
 };
 
+uint GetClosestPowerTwo(int value) {
+  enum {
+    PowerTwo8 = 256,
+    PowerTwo7 = 128,
+    PowerTwo6 = 64,
+    PowerTwo5 = 32,
+    PowerTwo4 = 16,
+    PowerTwo3 = 8,
+    PowerTwo2 = 4,
+    PowerTwo1 = 2,
+    PowerTwo0 = 1
+  };
+
+  if (value >= PowerTwo8) {
+    return PowerTwo8;
+  }
+  if (value >= PowerTwo7) {
+    return PowerTwo7;
+  }
+  if (value >= PowerTwo6) {
+    return PowerTwo6;
+  }
+  if (value >= PowerTwo5) {
+    return PowerTwo5;
+  }
+  if (value >= PowerTwo4) {
+    return PowerTwo4;
+  }
+  if (value >= PowerTwo3) {
+    return PowerTwo3;
+  }
+  if (value >= PowerTwo2) {
+    return PowerTwo2;
+  }
+  if (value >= PowerTwo1) {
+    return PowerTwo1;
+  }
+  return PowerTwo0;
+}
+
 int main() {
-  int size = 0;
+  std::ios_base::sync_with_stdio(false);
+
+  uint size = 0;
   std::cin >> size;
 
   std::vector<int> arr(size);
   int temp = 0;
-  for (int i = 0; i < size; ++i) {
+  for (uint i = 0; i < size; ++i) {
     std::cin >> temp;
     arr[i] = temp;
   }
-  uint block_len = static_cast<int>(std::sqrt(size)) + 1;
-  uint blocks_amount = block_len;
+  uint block_len = GetClosestPowerTwo(static_cast<int>(std::sqrt(size)));
+  uint blocks_amount = (size + block_len - 1) / block_len;
   SqrtDecomposition my_ds{std::move(arr), blocks_amount, block_len};
   my_ds.Init();
 
