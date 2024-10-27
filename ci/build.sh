@@ -13,8 +13,11 @@ OUT=out
 
 CXX=$(which clang++)
 CXXFLAGS="-std=c++20 -Wall -Wextra -Wpedantic -Werror -g"
-CXXFLAGS_RELEASE="$CXXFLAGS -O3 -DNDEBUG"
-CXXFLAGS_ASAN="$CXXFLAGS -fsanitize=address,undefined,leak"
+# CXXFLAGS_RELEASE="$CXXFLAGS -O3 -DNDEBUG"
+# CXXFLAGS_ASAN="$CXXFLAGS -fsanitize=address,undefined,leak"
+
+CXXFLAGS="$CXXFLAGS -O3 -DNDEBUG"
+CXXFLAGS="$CXXFLAGS -fsanitize=address,undefined,leak"
 
 TASK=$1
 MODE=$2
