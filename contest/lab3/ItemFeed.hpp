@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <set>
 #include <unordered_map>
 #include <vector>
@@ -17,11 +18,11 @@ struct Item {
 };
 
 struct ItemComparator {
-  bool operator()(const Item* lhs, const Item* rhs) const {
-    if (lhs->score == rhs->score) {
-      return lhs->id > rhs->id;
+  bool operator()(const std::shared_ptr<Item>& lhs, const std::shared_ptr<Item>& rhs) const {
+    if (lhs->score != rhs->score) {
+      return lhs->score < rhs->score;
     }
-    return lhs->score < rhs->score;
+    return lhs->id > rhs->id;
   }
 };
 
@@ -50,8 +51,8 @@ public:
     assert(Contains(uid));
     assert(1 <= limit && limit <= 16);
 
-    const Item* start_item = &uid_to_item_object_map_.at(uid);
-    auto set_iter = sorted_items_set_.find(start_item);  // find start position in set
+    const auto& start_item = uid_to_item_object_map_.at(uid);
+    auto set_iter = sorted_items_set_.find(start_item);
 
     std::vector<std::uint64_t> result;
     result.reserve(limit * 2);
@@ -64,17 +65,24 @@ public:
   void Add(Item item) {
     assert(!Contains(item.id));
 
-    uid_to_item_object_map_[item.id] = item;
-    sorted_items_set_.insert(&uid_to_item_object_map_[item.id]);
+    auto item_ptr = std::make_shared<Item>(item);
+    uid_to_item_object_map_[item_ptr->id] = item_ptr;
+    sorted_items_set_.insert(item_ptr);
+
     RebuildVector();
   }
 
   void Update(Item item) {
     assert(Contains(item.id));
 
-    sorted_items_set_.erase(&uid_to_item_object_map_[item.id]);
-    uid_to_item_object_map_[item.id].score = item.score;
-    sorted_items_set_.insert(&uid_to_item_object_map_[item.id]);
+    auto item_ptr = uid_to_item_object_map_[item.id];
+    if (item_ptr->score == item.score) {
+      return;
+    }
+
+    sorted_items_set_.erase(item_ptr);
+    item_ptr->score = item.score;
+    sorted_items_set_.insert(item_ptr);
 
     RebuildVector();
   }
@@ -82,9 +90,9 @@ public:
   void Remove(std::uint64_t uid) {
     assert(Contains(uid));
 
-    const auto& uid_item_pair = uid_to_item_object_map_.find(uid);
-    sorted_items_set_.erase(&uid_item_pair->second);
-    uid_to_item_object_map_.erase(uid_item_pair);
+    auto item_ptr = uid_to_item_object_map_[uid];
+    sorted_items_set_.erase(item_ptr);
+    uid_to_item_object_map_.erase(uid);
 
     RebuildVector();
   }
@@ -106,9 +114,10 @@ private:
     }
   }
 
-  std::unordered_map<std::uint64_t, Item> uid_to_item_object_map_;  // for lookup by id
-  std::set<const Item*, ItemComparator> sorted_items_set_;          // for lookup by id
-  std::vector<const Item*> items_vector_;                           //  for lookup by position
+  std::unordered_map<std::uint64_t, std::shared_ptr<Item>>
+      uid_to_item_object_map_;                                        // for lookup by id
+  std::set<std::shared_ptr<Item>, ItemComparator> sorted_items_set_;  // for lookup by id
+  std::vector<std::shared_ptr<Item>> items_vector_;                   //  for lookup by position
 };
 
 }  // namespace youndex::express
