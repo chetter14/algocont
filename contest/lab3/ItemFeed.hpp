@@ -63,9 +63,11 @@ public:
   }
 
   void Add(Item item) {
-    assert(!Contains(item.id));
-
+    // assert(!Contains(item.id));
     uid_to_item_object_map_[item.id] = item;
+
+
+
     sorted_items_set_.insert(item);
     RebuildVector();
   }
@@ -92,11 +94,11 @@ public:
     RebuildVector();
   }
 
-  void Print() {
-    for (const auto& item : sorted_items_set_) {
-      std::cout << item.id << "," << item.score << " ";
-    }
-  }
+  // void Print() {
+  //   for (const auto& item : sorted_items_set_) {
+  //     std::cout << item.id << "," << item.score << " ";
+  //   }
+  // }
 
 private:
   [[nodiscard]] bool Contains(std::uint64_t uid) const {
@@ -108,16 +110,50 @@ private:
     return items_vector_.size();
   }
 
-  void RebuildVector() {
-    items_vector_.clear();
-    for (const auto& item : sorted_items_set_) {
-      items_vector_.push_back(item);
+  // void RebuildVector() {
+  //   items_vector_.clear();
+  //   for (const auto& item : sorted_items_set_) {
+  //     items_vector_.push_back(item);
+  //   }
+  // }
+
+  bool IsLess(const Item& lhs, const Item& rhs) {
+    if (lhs.score != rhs.score) {
+      return lhs.score < rhs.score;
+    }
+    return lhs.id > rhs.id;
+  }
+
+  unsigned int RecursiveSearch(int left, int right, std::uint64_t uid) {
+    int middle = (right - left) / 2;
+    const Item& mid = items_vector_[middle];
+    if (mid.id == uid) {
+      return middle;
+    } else if (mid.id < )
+  }
+
+  // Find an index by uid via binary search: O(log n)
+  unsigned int FindIndex(std::uint64_t uid) {
+
+  }
+
+  // Insert using bubbling comparison: O(n)
+  void InsertInVector(const Item& item) {
+    items_vector_.push_back(item);
+
+    unsigned int cur = items_vector_.size() - 1;
+    while (cur > 0 && IsLess(items_vector_[cur], items_vector_[cur - 1])) {
+      std::swap(items_vector_[cur], items_vector_[cur - 1]);
+      --cur;
     }
   }
 
+  void RemoveFromVector(std::uint64_t uid) {
+
+  }
+
   std::unordered_map<std::uint64_t, Item> uid_to_item_object_map_;  // for lookup by id
-  std::set<Item, ItemComparator> sorted_items_set_;                 // for lookup by id
-  std::vector<Item> items_vector_;                                  //  for lookup by position
+  std::vector<Item> items_vector_;
 };
 
 }  // namespace youndex::express
