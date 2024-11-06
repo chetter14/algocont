@@ -3,7 +3,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
+#include <iostream>
 #include <set>
 #include <unordered_map>
 #include <vector>
@@ -18,11 +18,11 @@ struct Item {
 };
 
 struct ItemComparator {
-  bool operator()(const std::shared_ptr<Item>& lhs, const std::shared_ptr<Item>& rhs) const {
-    if (lhs->score != rhs->score) {
-      return lhs->score < rhs->score;
+  bool operator()(const Item& lhs, const Item& rhs) const {
+    if (lhs.score != rhs.score) {
+      return lhs.score < rhs.score;
     }
-    return lhs->id > rhs->id;
+    return lhs.id > rhs.id;
   }
 };
 
@@ -41,7 +41,7 @@ public:
     std::vector<std::uint64_t> result;
     result.reserve(limit * 2);
     for (size_t i = 0; i < limit && position + i < items_vector_.size(); ++i) {
-      result.push_back(items_vector_[position + i]->id);
+      result.push_back(items_vector_[position + i].id);
     }
     return result;
   }
@@ -51,13 +51,13 @@ public:
     assert(Contains(uid));
     assert(1 <= limit && limit <= 16);
 
-    const auto& start_item = uid_to_item_object_map_.at(uid);
+    Item start_item = uid_to_item_object_map_.at(uid);
     auto set_iter = sorted_items_set_.find(start_item);
 
     std::vector<std::uint64_t> result;
     result.reserve(limit * 2);
     for (std::size_t i = 0; i < limit && set_iter != sorted_items_set_.end(); ++i, ++set_iter) {
-      result.push_back((*set_iter)->id);
+      result.push_back((*set_iter).id);
     }
     return result;
   }
@@ -65,36 +65,37 @@ public:
   void Add(Item item) {
     assert(!Contains(item.id));
 
-    auto item_ptr = std::make_shared<Item>(item);
-    uid_to_item_object_map_[item_ptr->id] = item_ptr;
-    sorted_items_set_.insert(item_ptr);
-
+    uid_to_item_object_map_[item.id] = item;
+    sorted_items_set_.insert(item);
     RebuildVector();
   }
 
   void Update(Item item) {
     assert(Contains(item.id));
 
-    auto item_ptr = uid_to_item_object_map_[item.id];
-    if (item_ptr->score == item.score) {
+    if (uid_to_item_object_map_.at(item.id).score == item.score) {
       return;
     }
 
-    sorted_items_set_.erase(item_ptr);
-    item_ptr->score = item.score;
-    sorted_items_set_.insert(item_ptr);
-
+    sorted_items_set_.erase(uid_to_item_object_map_.at(item.id));
+    uid_to_item_object_map_.at(item.id).score = item.score;
+    sorted_items_set_.insert(uid_to_item_object_map_.at(item.id));
     RebuildVector();
   }
 
   void Remove(std::uint64_t uid) {
     assert(Contains(uid));
 
-    auto item_ptr = uid_to_item_object_map_[uid];
-    sorted_items_set_.erase(item_ptr);
+    Item item = uid_to_item_object_map_.at(uid);
+    sorted_items_set_.erase(item);
     uid_to_item_object_map_.erase(uid);
-
     RebuildVector();
+  }
+
+  void Print() {
+    for (const auto& item : sorted_items_set_) {
+      std::cout << item.id << "," << item.score << " ";
+    }
   }
 
 private:
@@ -114,10 +115,9 @@ private:
     }
   }
 
-  std::unordered_map<std::uint64_t, std::shared_ptr<Item>>
-      uid_to_item_object_map_;                                        // for lookup by id
-  std::set<std::shared_ptr<Item>, ItemComparator> sorted_items_set_;  // for lookup by id
-  std::vector<std::shared_ptr<Item>> items_vector_;                   //  for lookup by position
+  std::unordered_map<std::uint64_t, Item> uid_to_item_object_map_;  // for lookup by id
+  std::set<Item, ItemComparator> sorted_items_set_;                 // for lookup by id
+  std::vector<Item> items_vector_;                                  //  for lookup by position
 };
 
 }  // namespace youndex::express

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ItemFeed.hpp"
+#include "InputGenerator.hpp"
 
 namespace youndex::express::test {
 
@@ -88,5 +89,6 @@ void Main() {
 }  // namespace youndex::express::test
 
 int main() {
-  youndex::express::test::Main();
+  // youndex::express::test::Main();
+  CustomTestInOut();
 }
