@@ -12,12 +12,9 @@ usage() {
 OUT=out
 
 CXX=$(which clang++)
-CXXFLAGS="-std=c++20 -Wall -Wextra -Wpedantic -Werror -g "
-# CXXFLAGS_RELEASE="$CXXFLAGS -O3 -DNDEBUG"
-# CXXFLAGS_ASAN="$CXXFLAGS -fsanitize=address,undefined,leak"
-
-CXXFLAGS+="-O3 -DNDEBUG "
-# CXXFLAGS+="-fsanitize=address,undefined,leak "
+CXXFLAGS="-std=c++20 -Wall -Wextra -Wpedantic -Werror -g"
+CXXFLAGS_RELEASE="$CXXFLAGS -O3 -DNDEBUG"
+CXXFLAGS_ASAN="$CXXFLAGS -fsanitize=address,undefined,leak"
 
 TASK=$1
 MODE=$2
@@ -37,8 +34,6 @@ else
     echo "Invalid argument: MODE must be either 'Release' or 'Asan'."
     usage
 fi
-
-CXXFLAGS_TOTAL="$CXXFLAGS"
 
 echo "Got MODE: $MODE"
 
