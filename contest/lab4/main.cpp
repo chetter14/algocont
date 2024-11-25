@@ -5,68 +5,6 @@
 
 using uint = unsigned int;
 
-class SqrtDecomposition {
-public:
-  SqrtDecomposition(std::vector<int>&& arr, size_t blocks_number, uint block_len)
-      : arr_(std::move(arr)), blocks_sum_(blocks_number), block_len_(block_len) {
-    ;
-  }
-
-  void Init() {
-    // Initialize total sum of numbers in each block
-    for (uint i = 0; i < arr_.size(); ++i) {
-      blocks_sum_[i / block_len_] += arr_[i];
-    }
-  }
-
-  void SwapNumbersInRange(uint left, uint right) {
-    while (left < right) {
-      uint next = left + 1;
-      if (left / block_len_ != next / block_len_) {  // in different blocks
-        blocks_sum_[left / block_len_] += (arr_[next] - arr_[left]);
-        blocks_sum_[next / block_len_] += (arr_[left] - arr_[next]);
-      }
-      std::swap(arr_[left], arr_[next]);
-      left += 2;
-    }
-  }
-
-  int GetRangeSum(uint left, uint right) {
-    if (left == right) {
-      return arr_[left];
-    }
-
-    int range_sum = 0;
-
-    // Process the leftmost partial block
-    while (left <= right && (left % block_len_ != 0) && left != 0) {
-      range_sum += arr_[left];
-      ++left;
-    }
-
-    // Process full blocks in the middle
-    uint cur_block = left / block_len_;
-    while (left + block_len_ - 1 <= right) {
-      range_sum += blocks_sum_[cur_block];
-      left += block_len_;
-      cur_block = left / block_len_;
-    }
-
-    // Process the rightmost partial block
-    while (left <= right) {
-      range_sum += arr_[left];
-      ++left;
-    }
-
-    return range_sum;
-  }
-
-private:
-  std::vector<int> arr_;
-  std::vector<int> blocks_sum_;
-  uint block_len_;
-};
-
 uint GetClosestPowerTwo(int value) {
   enum {
     PowerTwo8 = 256,
@@ -107,6 +45,56 @@ uint GetClosestPowerTwo(int value) {
   return PowerTwo0;
 }
 
+void SwapNumbersInRange(
+    uint left, uint right, uint block_len, std::vector<int>& blocks_sum, std::vector<int>& arr
+) {
+  while (left < right) {
+    uint next = left + 1;
+    if (left / block_len != next / block_len) {  // in different blocks
+      blocks_sum[left / block_len] += (arr[next] - arr[left]);
+      blocks_sum[next / block_len] += (arr[left] - arr[next]);
+    }
+    std::swap(arr[left], arr[next]);
+    left += 2;
+  }
+}
+
+int GetRangeSum(
+    uint left,
+    uint right,
+    uint block_len,
+    const std::vector<int>& blocks_sum,
+    const std::vector<int>& arr
+) {
+  if (left == right) {
+    return arr[left];
+  }
+
+  int range_sum = 0;
+
+  // Process the leftmost partial block
+  while (left <= right && (left % block_len != 0) && left != 0) {
+    range_sum += arr[left];
+    ++left;
+  }
+
+  // Process full blocks in the middle
+  uint cur_block = left / block_len;
+  while (left + block_len - 1 <= right) {
+    range_sum += blocks_sum[cur_block];
+    left += block_len;
+    cur_block = left / block_len;
+  }
+
+  // Process the rightmost partial block
+  while (left <= right) {
+    range_sum += arr[left];
+    ++left;
+  }
+
+  return range_sum;
+}
+
 int main() {
   std::ios_base::sync_with_stdio(false);
 
@@ -129,8 +117,12 @@ int main() {
     }
     uint block_len = GetClosestPowerTwo(static_cast<int>(std::sqrt(size)));
     uint blocks_amount = (size + block_len - 1) / block_len;
-    SqrtDecomposition my_ds{std::move(arr), blocks_amount, block_len};
-    my_ds.Init();
+    std::vector<int> blocks_sum(blocks_amount);
+
+    // Initialize total sum of numbers in each block
+    for (uint i = 0; i < arr.size(); ++i) {
+      blocks_sum[i / block_len] += arr[i];
+    }
 
     std::cout << "Suite " << suite_number << ":\n";
     ++suite_number;
@@ -142,9 +134,9 @@ int main() {
       std::cin >> option >> left_boundary >> right_boundary;
 
       if (option == 1) {
-        my_ds.SwapNumbersInRange(left_boundary - 1, right_boundary - 1);
+        SwapNumbersInRange(left_boundary - 1, right_boundary - 1, block_len, blocks_sum, arr);
       } else if (option == 2) {
-        int sum = my_ds.GetRangeSum(left_boundary - 1, right_boundary - 1);
+        int sum = GetRangeSum(left_boundary - 1, right_boundary - 1, block_len, blocks_sum, arr);
         std::cout << sum << "\n";
       }
     }
