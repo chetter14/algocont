@@ -7,12 +7,13 @@ std::minstd_rand generator;
 
 struct Node {
 public:
-  uint key, priority;
-  uint size = 1;
-  uint64_t sum = key;
+  uint priority;
+  int size = 1;  // number of children + 1 (itself)
+  int value;     // value
+  int64_t sum;   // sum of children values
   Node *left = nullptr, *right = nullptr;
 
-  explicit Node(uint key) : key(key), priority(generator()) {
+  explicit Node(int value) : priority(generator()), value(value), sum(value) {
   }
 };
 
@@ -20,17 +21,17 @@ class Treap {
 private:
   Node* root_ = nullptr;
 
-  static uint GetSize(Node* n) {
+  static int GetSize(Node* n) {
     return n != nullptr ? n->size : 0;
   }
 
-  static uint64_t GetSum(Node* n) {
+  static int64_t GetSum(Node* n) {
     return n != nullptr ? n->sum : 0;
   }
 
-  static void Update(Node*& n) {
+  static void Update(Node* n) {
     if (n != nullptr) {
-      n->sum = GetSum(n->left) + n->key + GetSum(n->right);
+      n->sum = GetSum(n->left) + n->value + GetSum(n->right);
       n->size = GetSize(n->left) + 1 + GetSize(n->right);
     }
   }
@@ -48,126 +49,139 @@ private:
       Update(a);
       return a;
     } else {
-      b->left = Merge(a, b->right);
+      b->left = Merge(a, b->left);
       Update(b);
       return b;
     }
   }
 
-  static void Split(Node* root, int key, Node*& a, Node*& b) {
-    if (root == nullptr) {
+  static void Split(Node* node, int k, Node*& a, Node*& b) {
+    if (node == nullptr) {
       a = nullptr;
       b = nullptr;
       return;
     }
 
-    if (root->key < key) {
-      Split(root->right, key, root->right, b);
-      a = root;
+    if (GetSize(node->left) < k) {
+      Split(node->right, k - GetSize(node->left) - 1, node->right, b);
+      a = node;
     } else {
-      Split(root->left, key, a, root->left);
-      b = root;
+      Split(node->left, k, a, node->left);
+      b = node;
     }
     Update(a);
     Update(b);
   }
 
-  uint Min(Node* n) const {
-    while (n->left != nullptr) {
-      n = n->left;
+  void CleanUp(Node* node) {
+    if (node == nullptr) {
+      return;
     }
-    return n->key;
-  }
-
-  static uint KeyByIndex(Node* n, uint index) {
-    uint left_size = GetSize(n->left);
-    if (index == left_size) {
-      return n->key;
-    }
-    if (index < left_size) {
-      return KeyByIndex(n->left, index);
-    } else {
-      return KeyByIndex(n->right, index - left_size - 1);
-    }
+    CleanUp(node->left);
+    CleanUp(node->right);
+    delete node;
   }
 
 public:
-  bool Contains(uint key) {
-    // Can be implemented via simple binary search !!!
-
-    Node* less = nullptr;
-    Node* greater = nullptr;
-    Split(root_, key, less, greater);
-
-    Node* equal = nullptr;
-    Split(greater, key + 1, equal, greater);
-    bool result = (equal != nullptr);
-
-    less = Merge(less, equal);
-    root_ = Merge(less, greater);
-    return result;
+  ~Treap() {
+    CleanUp(root_);
   }
 
-  void Insert(uint key) {
-    Node* less = nullptr;
-    Node* greater = nullptr;
-    Split(root_, key, less, greater);
-
-    less = Merge(less, new Node(key));
-    root_ = Merge(less, greater);
+  void PushBack(int value) {
+    root_ = Merge(root_, new Node(value));
   }
 
-  void Erase(uint key) {
-    Node* less = nullptr;
-    Node* greater = nullptr;
-    Split(root_, key, less, greater);
-
-    Node* equal = nullptr;
-    Split(greater, key + 1, equal, greater);
-
-    root_ = Merge(less, greater);
-  }
-
-  uint Next(uint key) {
-    Node* less = nullptr;
-    Node* greater = nullptr;
-    Split(root_, key + 1, less, greater);
-
-    uint result = Min(greater);
-    root_ = Merge(less, greater);
-    return result;
-  }
-
-  uint GetIndexByKey(uint key) {
-    Node* less = nullptr;
-    Node* greater = nullptr;
-    Split(root_, key, less, greater);
-
-    uint result = GetSize(less);
-    root_ = Merge(less, greater);
-    return result;
-  }
-
-  uint GetKeyByIndex(uint index) {
-    return KeyByIndex(root_, index);
-  }
-
-  uint64_t Sum(uint left, uint right) {
+  int64_t Sum(int left, int right) {
     Node* less = nullptr;
     Node* greater = nullptr;
     Node* equal = nullptr;
+
     Split(root_, left, less, greater);
-    Split(greater, right + 1, equal, greater);
+    Split(greater, right - left + 1, equal, greater);
 
-    uint64_t result = GetSum(equal);
+    int64_t result = GetSum(equal);
     root_ = Merge(Merge(less, equal), greater);
     return result;
   }
+
+  friend void SwapEvenOdd(int left_boundary, int right_boundary, Treap& even, Treap& odd);
 };
+
+void SwapEvenOdd(int left_boundary, int right_boundary, Treap& even, Treap& odd) {
+  Node *even_left, *even_middle, *even_right;
+  int even_left_index = left_boundary % 2 ? (left_boundary + 1) / 2 : left_boundary / 2;
+  int even_right_index = right_boundary % 2 ? (right_boundary - 1) / 2 : right_boundary / 2;
+  Treap::Split(even.root_, even_left_index, even_left, even_right);
+  Treap::Split(even_right, even_right_index - even_left_index + 1, even_middle, even_right);
+
+  Node *odd_left, *odd_middle, *odd_right;
+  int odd_left_index = left_boundary % 2 ? (left_boundary - 1) / 2 : left_boundary / 2;
+  int odd_right_index = right_boundary % 2 ? (right_boundary - 1) / 2 : right_boundary / 2 - 1;
+  Treap::Split(odd.root_, odd_left_index, odd_left, odd_right);
+  Treap::Split(odd_right, odd_right_index - odd_left_index + 1, odd_middle, odd_right);
+
+  even.root_ = Treap::Merge(Treap::Merge(even_left, odd_middle), even_right);
+  odd.root_ = Treap::Merge(Treap::Merge(odd_left, even_middle), odd_right);
+}
+
+int64_t Sum(int left_boundary, int right_boundary, Treap& even, Treap& odd) {
+  int even_left_index = left_boundary % 2 ? (left_boundary + 1) / 2 : left_boundary / 2;
+  int even_right_index = right_boundary % 2 ? (right_boundary - 1) / 2 : right_boundary / 2;
+
+  int odd_left_index = left_boundary % 2 ? (left_boundary - 1) / 2 : left_boundary / 2;
+  int odd_right_index = right_boundary % 2 ? (right_boundary - 1) / 2 : right_boundary / 2 - 1;
+
+  return even.Sum(even_left_index, even_right_index) + odd.Sum(odd_left_index, odd_right_index);
+}
 
 int main() {
   std::ios::sync_with_stdio(false);
   std::cin.tie(nullptr);
 
+  uint suite_number = 1;
+
+  while (true) {
+    uint size = 0;
+    uint requests_number = 0;
+    std::cin >> size >> requests_number;
+
+    if (size == 0 && requests_number == 0) {  // two 0s in the end of input
+      break;
+    }
+
+    Treap even_treap;
+    Treap odd_treap;
+
+    int temp = 0;
+    for (uint i = 0; i < size; ++i) {
+      std::cin >> temp;
+      if (i % 2 == 0) {
+        even_treap.PushBack(temp);
+      } else {
+        odd_treap.PushBack(temp);
+      }
+    }
+
+    std::cout << "Suite " << suite_number << ":\n";
+    ++suite_number;
+
+    for (uint i = 0; i < requests_number; ++i) {
+      int option = 0;
+      int left_boundary = 0;
+      int right_boundary = 0;
+      std::cin >> option >> left_boundary >> right_boundary;
+
+      // convert to 0-th base
+      --left_boundary;
+      --right_boundary;
+
+      if (option == 1) {
+        SwapEvenOdd(left_boundary, right_boundary, even_treap, odd_treap);
+      } else if (option == 2) {
+        std::cout << Sum(left_boundary, right_boundary, even_treap, odd_treap) << "\n";
+      }
+    }
+    std::cout << "\n";
+  }
   return 0;
 }
